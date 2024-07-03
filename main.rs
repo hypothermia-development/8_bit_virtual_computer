@@ -1,3 +1,13 @@
+
+/*
+
+notes
+
+inc_register doesnt work
+jmp doesnt work
+
+*/
+
 use std::fs::File;
 use std::io::{self, Read};
 const RAM_SIZE: usize = 4096;
@@ -8,8 +18,10 @@ const MEMORY_SIZE: usize = 65536;
 
 // define cpu basics
 struct CPU
-{
+{  
+
     registers: [u8; 4],
+    //program counter
     pc: u16, 
     memory: [u8; 65536],
     ram: [u8; RAM_SIZE],
@@ -49,7 +61,7 @@ impl CPU
         self.pc += 3;
         Some((opcode, operand1, operand2))
     }
-
+    // loops every byte (opcode in this case) in every line, then stores in ROM
     fn load_rom_from_file(&mut self, filename: &str) -> io::Result<()>
     {
         let mut file = File::open(filename)?;
@@ -70,7 +82,7 @@ impl CPU
         Ok(())
     }
 
-
+    //returns ROM of a certain address
     fn read_rom(&self, address: usize) -> u8
     {
         if address < ROM_SIZE
@@ -82,7 +94,7 @@ impl CPU
             panic!("Out of bounds access to ROM!");
         }
     }
-
+    // returns RAM of a certain address
     fn read_ram(&self, address: usize) -> u8
     {
         if address < RAM_SIZE
@@ -95,7 +107,7 @@ impl CPU
         }
     }
 
-
+    // writes data to ram
     fn write_ram(&mut self, address: usize, data: u8)
     {
         if address < RAM_SIZE
@@ -111,8 +123,17 @@ impl CPU
 
     // CONTROL UNIT
 
+
+    //bugged: doesntwork
+    // increments a register's value
+    fn inc_register(&mut self, reg_index: usize)
+    {
+        self.registers[reg_index] = self.registers[reg_index].wrapping_add(1)
+    }
+
     fn execute_instruction(&mut self, opcode: u8, operand1: u8, operand2: u8) 
     {
+        // asm ahh 
         match opcode {
             0x01 => //  LOAD 
             {
@@ -127,11 +148,11 @@ impl CPU
                 let src_index = operand2 as usize;
                 self.registers[dest_index] = self.registers[dest_index].wrapping_add(self.registers[src_index]);
             },
-            0x03 => // SUB
+            0x03 => // JMP
             {
-                let value1 = operand1;
-                let value2 = operand2;
-                CPU::sub(operand1, operand2);
+                let starting_address = operand1 as usize;
+                let jmp_to_address = operand2 as usize;
+                //write this
             },
             0x04 => // STORE
             {
@@ -139,11 +160,23 @@ impl CPU
                 let mem_address = operand2 as usize;
                 self.ram[mem_address] = self.registers[register_index];
             },
+            0x05 => // INC RAM
+            {
+                let starting_index = operand1 as usize;
+                let resulting_address = operand2 as usize;
+                let resulting_index = self.ram[starting_index + 1];
+
+            },
+            0x06 => // INC REGISTER
+            {
+                self.inc_register(operand1 as usize);
+            },
 
             _ => panic!("Unknown opcode: 0x{:02X}", opcode),
         }
     }
 
+    // honestly i dont know how this works
     fn run(&mut self, memory: &[u8])
     {
         while let Some((opcode, operand1, operand2)) = self.fetch_instruction(memory)
@@ -162,21 +195,17 @@ impl CPU
 
 fn main() 
 {
-
+    // init
     let mut vc = CPU::new();
 
 
     let rom = vec![
-        0x01, 0x00, 0x05, // LOAD A 5
-        0x01, 0x01, 0x0A, // LOAD B 10
-        0x02, 0x00, 0x01, // ADD A B
-        0x04, 0x00, 0x20, // STORE A 0x20
-
+        0x06, 0x00, // doesnt work, supposed to increment value of register A, doesnt do that
     ];
     vc.run(&rom);
-    let result = vc.ram[0x20];
+    let result = vc.registers[0];
 
-    println!("result stored in ram at 0x20: {}", result);
+    println!("thing : {}", result);
     println!("Hooray!");
 
 }
